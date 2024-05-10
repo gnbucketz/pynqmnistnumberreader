@@ -1,4 +1,4 @@
-#include "lenet.h"
+#include "cnn_tsr.h"
 #include <memory.h>
 #include <time.h>
 #include <stdlib.h>
