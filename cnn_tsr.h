@@ -1,4 +1,3 @@
-
 #define LENGTH_KERNEL   5
 
 #define LENGTH_FEATURE0 32
@@ -48,7 +47,7 @@ typedef struct Feature
     double output[OUTPUT];
 } Feature;
 
-void TrafficSignRecognition(LeNet5 *lenet, image *inputs, uint8 *labels, int batchSize);
+void cnn_tsr_top(LeNet5 *lenet, image *inputs, uint8 *labels, int batchSize);
 
 void Train(LeNet5 *lenet, image input, uint8 label);
 
