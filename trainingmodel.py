@@ -1,52 +1,46 @@
 import tensorflow as tf
 from tensorflow import keras
-from keras import layers, models, optimizers
+from keras import layers
+from keras import mnist
+import pandas as pd
 import numpy as np
-from keras.datasets import mnist
 import matplotlib.pyplot as plt
 
-# Checking GPU availability
-device_name = tf.test.gpu_device_name()
-if device_name != '/device:GPU:0':
-    raise SystemError('GPU device not found')
-print('Found GPU at: {}'.format(device_name))
+(x_train, y_train), (x_test, y_test) = mnist.load_data() #input and output
 
-# Downloading the dataset for training
-(X_train_full, y_train_full), (X_test, y_test) = mnist.load_data()
-X_valid, X_train = X_train_full[:5000] / 255., X_train_full[5000:] / 255.
-y_valid, y_train = y_train_full[:5000], y_train_full[5000:]
-X_test = X_test / 255.
+cmap = 'Greys' #make images from dataset grey, easier to read 
 
-X_train = np.expand_dims(X_train, axis=-1)
-X_valid = np.expand_dims(X_valid, axis=-1)
-X_test = np.expand_dims(X_test, axis=-1)
+x_train.shape
+x_train = x_train.reshape(60000,28,28,1) #reshape to fit dataset
+x_train = x_train / 255.0 #fixing scaling
 
-# Declaring the CNN model
-model = models.Sequential([
-    layers.Conv2D(filters=6, kernel_size=(5, 5), padding='same', activation='relu', strides=1, input_shape=[28,28,1]),
-    layers.AveragePooling2D(pool_size=(2, 2), strides=2),
-    layers.Conv2D(filters=16, kernel_size=(5, 5), strides=1, activation='relu'),
-    layers.AveragePooling2D(pool_size=(2, 2), strides=2),
-    layers.Flatten(),
-    layers.Dense(units=10, activation='relu'),
-    layers.Dense(units=10, activation='softmax')
-])
+x_test = x_test.reshape((10000,28,28,1))
+y_test = y_test / 255.0
 
-# Selecting an optimizer
-opt = optimizers.SGD(learning_rate=0.01)
+x_train.shape
+x_test.shape
 
-# Compiling the model
-model.compile(loss="sparse_categorical_crossentropy", optimizer=opt, metrics=["accuracy"])
+def CNN():
+    inputs = keras.Input(shape=(28,28,1), name='Input layer')
+    x = layers.Conv2D(filters=32, kernal_size = 3, strides = (1,1), padding='valid', activation='relu', name= "conv_layer_1")(inputs) #filter size 32, kernal 3 by 3, stride default is 1, activation function is relu
+    x = layers.MaxPool2D(pool_size=(2, 2), name="pooling_1")(x)
+    x = layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', name="conv_layer_2")(x)
+    x = layers.Conv2D(filters=128, kernel_size=(3, 3), activation='relu', name="conv_layer_3")(x)
+    x = layers.MaxPool2D(pool_size=(2, 2), name="pooling_2")(x)
+    x = layers.Flatten(name="flattening_layer")(x) #Flatten layer to transform the data
+    x = layers.Dense(units=64, activation="relu")(x) #Dense layers are fully connected,
+    outputs = layers.Dense(units=10, activation='softmax', name='output_layer')(x)
+    
+    model = keras.Model(inputs=inputs, outputs=outputs, name='first_CNN_model')
+    model.compile(optimizer='rmsprop',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
 
-# Training the network
-history = model.fit(X_train, y_train, epochs=100, batch_size=256, validation_data=(X_valid, y_valid))
+    return model
 
-# Extracting the weights from the network
-for layer in model.layers:
-    if len(layer.weights) > 0:
-        if len(layer.weights[0].shape) == 4:
-            converted_weights = np.transpose(layer.weights[0], [3, 2, 0, 1])
-            np.savetxt(layer.name + ".txt", converted_weights.flatten(), delimiter=",")
-        else:
-            converted_weights = np.transpose(layer.weights[0], [1,0])
-            np.savetxt(layer.name + ".txt", converted_weights.flatten(), delimiter=",")
+from keras.callbacks import ModelCheckpoint
+modelcheckpoint = ModelCheckpoint(filepath="first_CNN.h5", save_best=True, monitor="val_loss")
+
+history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), epochs=10, batch_size=64, callbacks=[modelcheckpoint])
+test_model = keras.models.load_model('first_CNN.h5')
+test_model.evaluate(x_test, y_test)
